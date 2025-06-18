@@ -1,0 +1,97 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    canvas { border: 1px solid black; }
+  </style>
+</head>
+<body>
+  <script>
+    let paddle;
+    let ball;
+    let score = 0;
+
+    function setup() {
+      createCanvas(400, 400);
+      paddle = { x: 175, y: 350, w: 50, h: 10 };
+      ball = { x: 200, y: 200, dx: 2, dy: -2, r: 10 };
+    }
+
+    function draw() {
+      background(220);
+      // Move paddle with mouse
+      paddle.x = mouseX - paddle.w / 2;
+      paddle.x = constrain(paddle.x, 0, width - paddle.w);
+
+      // Draw paddle
+      fill(0);
+      rect(paddle.x, paddle.y, paddle.w, paddle.h);
+
+      // Draw and move ball
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+      ellipse(ball.x, ball.y, ball.r * 2);
+
+      // Bounce off walls
+      if (ball.x < 0 || ball.x > width) ball.dx *= -1;
+      if (ball.y < 0) ball.dy *= -1;
+      if (ball.y > height) {
+        ball.y = 200;
+        ball.x = 200;
+        score = 0;
+      }
+
+      // Bounce off paddle
+      if (ball.y + ball.r > paddle.y && ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
+        ball.dy *= -1;
+        score++;
+      }
+
+      // Display score
+      textSize(16);
+      text('Score: ' + score, 10, 20);
+    }
+  </script>
+</body>
+</html>
